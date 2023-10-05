@@ -117,6 +117,8 @@ interface ICommitMessageProps {
 
   readonly commitSpellcheckEnabled: boolean
 
+  readonly showCommitLengthWarning: boolean
+
   /** Optional text to override default commit button text */
   readonly commitButtonText?: string
 
@@ -758,7 +760,7 @@ export class CommitMessage extends React.Component<
         onAuthorsUpdated={this.onCoAuthorsUpdated}
         authors={this.props.coAuthors}
         autoCompleteProvider={autocompletionProvider}
-        disabled={this.props.isCommitting === true}
+        readOnly={this.props.isCommitting === true}
       />
     )
   }
@@ -1344,6 +1346,7 @@ export class CommitMessage extends React.Component<
       this.state.repoRuleCommitMessageFailures.status !== 'pass'
 
     const showSummaryLengthHint =
+      this.props.showCommitLengthWarning &&
       !showRepoRuleCommitMessageFailureHint &&
       this.state.summary.length > IdealSummaryLength
 
@@ -1386,7 +1389,7 @@ export class CommitMessage extends React.Component<
             }
             aria-describedby={ariaDescribedBy}
             onContextMenu={this.onAutocompletingInputContextMenu}
-            disabled={isCommitting === true}
+            readOnly={isCommitting === true}
             spellcheck={commitSpellcheckEnabled}
           />
           {showRepoRuleCommitMessageFailureHint &&
@@ -1413,7 +1416,7 @@ export class CommitMessage extends React.Component<
             ref={this.onDescriptionFieldRef}
             onElementRef={this.onDescriptionTextAreaRef}
             onContextMenu={this.onAutocompletingInputContextMenu}
-            disabled={isCommitting === true}
+            readOnly={isCommitting === true}
             spellcheck={commitSpellcheckEnabled}
           />
           {this.renderActionBar()}
