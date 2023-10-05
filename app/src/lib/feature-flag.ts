@@ -73,19 +73,9 @@ export function enableResetToCommit(): boolean {
   return enableDevelopmentFeatures()
 }
 
-/** Should we allow high contrast theme option */
-export function enableHighContrastTheme(): boolean {
-  return enableBetaFeatures()
-}
-
-/** Should we allow customizing a theme */
-export function enableCustomizeTheme(): boolean {
-  return enableBetaFeatures()
-}
-
-/** Should ci check runs show logs? */
-export function enableCICheckRunsLogs(): boolean {
-  return false
+/** Should we allow checking out a single commit? */
+export function enableCheckoutCommit(): boolean {
+  return true
 }
 
 /** Should we show previous tags as suggestions? */
@@ -98,27 +88,14 @@ export function enablePullRequestQuickView(): boolean {
   return enableDevelopmentFeatures()
 }
 
-/** Should we enable displaying multi commit diffs. This also switches diff logic from one commit */
-export function enableMultiCommitDiffs(): boolean {
+export function enableMoveStash(): boolean {
   return true
 }
 
-/** Should we enable the new interstitial for submodule diffs? */
-export function enableSubmoduleDiff(): boolean {
-  return true
-}
+export const enableCustomGitUserAgent = enableBetaFeatures
 
-/** Should we enable starting pull requests? */
-export function enableStartingPullRequests(): boolean {
+export function enableSectionList(): boolean {
   return enableBetaFeatures()
 }
 
-/** Should we enable starting pull requests? */
-export function enableStackedPopups(): boolean {
-  return enableBetaFeatures()
-}
-
-/** Should we enable mechanism to prevent closing while the app is updating? */
-export function enablePreventClosingWhileUpdating(): boolean {
-  return enableBetaFeatures()
-}
+export const enableRepoRulesBeta = () => true

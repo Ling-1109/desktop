@@ -23,6 +23,10 @@ interface ICheckboxProps {
 
   /** The label for the checkbox. */
   readonly label?: string | JSX.Element
+
+  /** An aria description of a checkbox - intended to provide more verbose
+   * information than a label that a the user might need */
+  readonly ariaDescribedBy?: string
 }
 
 interface ICheckboxState {
@@ -61,6 +65,10 @@ export class Checkbox extends React.Component<ICheckboxProps, ICheckboxState> {
     }
   }
 
+  public focus() {
+    this.input?.focus()
+  }
+
   private updateInputState() {
     const input = this.input
     if (input) {
@@ -75,6 +83,15 @@ export class Checkbox extends React.Component<ICheckboxProps, ICheckboxState> {
     // Necessary since componentDidUpdate doesn't run on initial
     // render
     this.updateInputState()
+  }
+
+  private onDoubleClick = (event: React.MouseEvent<HTMLInputElement>) => {
+    // This will prevent double clicks on the checkbox to be bubbled up in the
+    // DOM hierarchy and trigger undesired actions. For example, a double click
+    // on the checkbox in the changed file list should not open the file in the
+    // external editor.
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   private renderLabel() {
@@ -92,8 +109,10 @@ export class Checkbox extends React.Component<ICheckboxProps, ICheckboxState> {
           tabIndex={this.props.tabIndex}
           type="checkbox"
           onChange={this.onChange}
+          onDoubleClick={this.onDoubleClick}
           ref={this.onInputRef}
           disabled={this.props.disabled}
+          aria-describedby={this.props.ariaDescribedBy}
         />
         {this.renderLabel()}
       </div>

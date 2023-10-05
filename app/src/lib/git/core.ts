@@ -145,7 +145,16 @@ export async function git(
     const combineOutput = (readable: Readable | null) => {
       if (readable) {
         readable.pipe(split2()).on('data', (line: string) => {
-          combinedOutput += line + '\n'
+          try {
+            combinedOutput += line + '\n'
+          } catch (err) {
+            log.error(err)
+            log.error('Combined output:' + JSON.stringify(combinedOutput))
+            log.error('Line:' + JSON.stringify(line))
+
+            console.error('Combined output (object):', combinedOutput)
+            console.error('Line (object):', line)
+          }
         })
       }
     }
@@ -309,7 +318,7 @@ export function parseConfigLockFilePathFromError(result: IGitResult) {
 function getDescriptionForError(error: DugiteError): string | null {
   if (isAuthFailureError(error)) {
     const menuHint = __DARWIN__
-      ? 'GitHub Desktop > Preferences.'
+      ? 'GitHub Desktop > Settings.'
       : 'File > Options.'
     return `Authentication failed. Some common reasons include:
 

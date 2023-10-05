@@ -10,10 +10,30 @@ import classNames from 'classnames'
 import FocusTrap from 'focus-trap-react'
 import { Options as FocusTrapOptions } from 'focus-trap'
 import { TooltipTarget } from '../lib/tooltip'
+import { AriaHasPopupType } from '../lib/aria-types'
 
 export type DropdownState = 'open' | 'closed'
 
+/** Represents the style of the dropdown */
+export enum ToolbarDropdownStyle {
+  /**
+   * The dropdown is rendered as a single button and, when expanded, takes the
+   * full height of the window.
+   */
+  Foldout,
+
+  /**
+   * The dropdown is rendered as two buttons: one is the toolbar button itself,
+   * and the other one is the expand/collapse button.
+   * When expanded, it only takes the height of the content.
+   */
+  MultiOption,
+}
+
 export interface IToolbarDropdownProps {
+  /** The style of the dropdown. Default: Foldout */
+  readonly dropdownStyle?: ToolbarDropdownStyle
+
   /** The primary button text, describing its function */
   readonly title?: string
 
@@ -74,6 +94,8 @@ export interface IToolbarDropdownProps {
    */
   readonly onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void
 
+  readonly onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void
+
   /**
    * A function that's called whenever something is dragged over the
    * dropdown.
@@ -92,7 +114,13 @@ export interface IToolbarDropdownProps {
   /** The button's style. Defaults to `ToolbarButtonStyle.Standard`. */
   readonly style?: ToolbarButtonStyle
 
-  /** Whether the dropdown will trap focus or not. Defaults to true. */
+  /** Whether the dropdown will trap focus or not. Defaults to true.
+   *
+   * Example of usage: If a dropdown is open and then a dialog subsequently, the
+   * focus trap logic will stop propagation of the focus event to the dialog.
+   * Thus, we want to disable this when dialogs are open since they will be
+   * using the HTML build in dialog focus management.
+   */
   readonly enableFocusTrap?: boolean
 
   /**
@@ -147,6 +175,7 @@ export interface IToolbarDropdownProps {
 
   readonly role?: string
   readonly buttonRole?: string
+  readonly buttonAriaHaspopup?: AriaHasPopupType
 
   /** Classes to be appended to `ToolbarButton` component */
   readonly buttonClassName?: string
@@ -172,6 +201,19 @@ export interface IToolbarDropdownProps {
    * the tooltip.
    */
   readonly isOverflowed?: ((target: TooltipTarget) => boolean) | boolean
+
+  /**
+   * Typically the contents of a button serve the purpose of describing the
+   * buttons use. However, ariaLabel can be used if the contents do not suffice.
+   * Such as when a button wraps an image and there is no text.
+   */
+  readonly ariaLabel?: string
+
+  /** Whether or not the focus trap should return focus to the activating button  */
+  readonly returnFocusOnDeactivate?: boolean
+
+  /** Callback fro when the focus trap deactivates */
+  readonly onDropdownFocusTrapDeactivate?: () => void
 }
 
 interface IToolbarDropdownState {
@@ -185,7 +227,8 @@ export class ToolbarDropdown extends React.Component<
   IToolbarDropdownProps,
   IToolbarDropdownState
 > {
-  private innerButton: ToolbarButton | null = null
+  private innerButton = React.createRef<ToolbarButton>()
+  private rootDiv = React.createRef<HTMLDivElement>()
   private focusTrapOptions: FocusTrapOptions
 
   public constructor(props: IToolbarDropdownProps) {
@@ -199,6 +242,8 @@ export class ToolbarDropdown extends React.Component<
       // we would lose the "source" of the event (keyboard vs pointer).
       clickOutsideDeactivates: false,
       escapeDeactivates: false,
+      returnFocusOnDeactivate: this.props.returnFocusOnDeactivate,
+      onDeactivate: this.props.onDropdownFocusTrapDeactivate,
     }
   }
 
@@ -224,13 +269,28 @@ export class ToolbarDropdown extends React.Component<
     }
 
     const state = this.props.dropdownState
-
-    return (
+    const dropdownIcon = (
       <Octicon symbol={this.dropdownIcon(state)} className="dropdownArrow" />
+    )
+
+    return this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption ? (
+      <ToolbarButton
+        className="toolbar-dropdown-arrow-button"
+        onClick={this.onToggleDropdownClick}
+        ariaExpanded={this.isOpen}
+        ariaHaspopup={true}
+        ariaLabel={this.props.ariaLabel}
+      >
+        {dropdownIcon}
+      </ToolbarButton>
+    ) : (
+      dropdownIcon
     )
   }
 
-  private onClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  private onToggleDropdownClick = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
     const newState: DropdownState =
       this.props.dropdownState === 'open' ? 'closed' : 'open'
 
@@ -247,13 +307,22 @@ export class ToolbarDropdown extends React.Component<
     this.props.onDropdownStateChanged(newState, source)
   }
 
+  private onMainButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption) {
+      this.props.onClick?.(event)
+      return
+    }
+
+    this.onToggleDropdownClick(event)
+  }
+
   private onContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     this.props.onContextMenu?.(event)
   }
 
   private updateClientRectIfNecessary() {
-    if (this.props.dropdownState === 'open' && this.innerButton) {
-      const newRect = this.innerButton.getButtonBoundingClientRect()
+    if (this.props.dropdownState === 'open' && this.rootDiv.current) {
+      const newRect = this.rootDiv.current.getBoundingClientRect()
       if (newRect) {
         const currentRect = this.state.clientRect
 
@@ -266,10 +335,6 @@ export class ToolbarDropdown extends React.Component<
 
   public componentDidMount() {
     this.updateClientRectIfNecessary()
-  }
-
-  public componentWillUnmount() {
-    this.innerButton = null
   }
 
   public componentDidUpdate() {
@@ -305,12 +370,16 @@ export class ToolbarDropdown extends React.Component<
       return undefined
     }
 
+    const heightStyle: React.CSSProperties =
+      this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption
+        ? { maxHeight: '100%', width: rect.width }
+        : { height: '100%', minWidth: rect.width }
+
     return {
       position: 'absolute',
       marginLeft: rect.left,
-      minWidth: rect.width,
-      height: '100%',
       top: 0,
+      ...heightStyle,
     }
   }
 
@@ -354,45 +423,42 @@ export class ToolbarDropdown extends React.Component<
     )
   }
 
-  private onRef = (ref: ToolbarButton | null) => {
-    this.innerButton = ref
-  }
-
   /**
    * Programmatically move keyboard focus to the button element.
    */
   public focusButton = () => {
-    if (this.innerButton) {
-      this.innerButton.focusButton()
+    if (this.innerButton.current) {
+      this.innerButton.current.focusButton()
     }
   }
 
   public render() {
     const className = classNames(
       'toolbar-dropdown',
+      this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption
+        ? 'multi-option-style'
+        : 'foldout-style',
       this.props.dropdownState,
       this.props.className
     )
-
-    const ariaExpanded = this.props.dropdownState === 'open' ? 'true' : 'false'
 
     return (
       <div
         className={className}
         onKeyDown={this.props.onKeyDown}
         role={this.props.role}
-        aria-expanded={ariaExpanded}
         onDragOver={this.props.onDragOver}
+        ref={this.rootDiv}
       >
         {this.renderDropdownContents()}
         <ToolbarButton
           className={this.props.buttonClassName}
-          ref={this.onRef}
+          ref={this.innerButton}
           icon={this.props.icon}
           title={this.props.title}
           description={this.props.description}
           tooltip={this.props.tooltip}
-          onClick={this.onClick}
+          onClick={this.onMainButtonClick}
           onContextMenu={this.onContextMenu}
           onMouseEnter={this.props.onMouseEnter}
           style={this.props.style}
@@ -405,10 +471,19 @@ export class ToolbarDropdown extends React.Component<
             this.props.onlyShowTooltipWhenOverflowed
           }
           isOverflowed={this.props.isOverflowed}
+          ariaExpanded={
+            this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption
+              ? undefined
+              : this.isOpen
+          }
+          ariaHaspopup={this.props.buttonAriaHaspopup}
         >
           {this.props.children}
-          {this.renderDropdownArrow()}
+          {this.props.dropdownStyle !== ToolbarDropdownStyle.MultiOption &&
+            this.renderDropdownArrow()}
         </ToolbarButton>
+        {this.props.dropdownStyle === ToolbarDropdownStyle.MultiOption &&
+          this.renderDropdownArrow()}
       </div>
     )
   }

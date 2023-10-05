@@ -2,6 +2,7 @@ import * as React from 'react'
 import classNames from 'classnames'
 import { Tooltip, TooltipDirection } from './tooltip'
 import { createObservableRef } from './observable-ref'
+import { AriaHasPopupType } from './aria-types'
 
 export interface IButtonProps {
   /**
@@ -25,6 +26,9 @@ export interface IButtonProps {
    * a pointer device.
    */
   readonly onMouseEnter?: (event: React.MouseEvent<HTMLButtonElement>) => void
+
+  /** Called on key down. */
+  readonly onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void
 
   /** An optional tooltip to render when hovering over the button */
   readonly tooltip?: string
@@ -74,14 +78,82 @@ export interface IButtonProps {
    */
   readonly tabIndex?: number
 
+  /**
+   * ARIA roles provide semantic meaning to content, allowing screen readers and
+   * other tools to present and support interaction with object in a way that is
+   * consistent with user expectations of that type of object. ARIA roles can be
+   * used to describe elements that don't natively exist in HTML or exist but
+   * don't yet have full browser support.
+   *
+   * By default, many semantic elements in HTML have a role; for example, <input
+   * type="radio"> has the "radio" role. Non-semantic elements in HTML do not
+   * have a role; <div> and <span> without added semantics return null. The role
+   * attribute can provide semantics.
+   */
   readonly role?: string
+
+  /**
+   * The aria-expanded attribute is set on an element to indicate if a control
+   * is expanded or collapsed, and whether or not the controlled elements are
+   * displayed or hidden.
+   *
+   * There are several widgets that can be expanded and collapsed, including
+   * menus, dialogs, and accordion panels. Each of these objects, in turn, has
+   * an interactive element that controls their opening and closing. The
+   * aria-expanded attribute is applied to this focusable, interactive control
+   * that toggles the visibility of the object.
+   */
   readonly ariaExpanded?: boolean
+
+  /** An aria attribute indicates the availability and type of interactive popup
+   * element that can be triggered by the element on which the attribute is set
+   *
+   * Notes: The value true is the same as menu. Any other value, including an
+   * empty string or other role, is treated as if false were set.
+   * */
+  readonly ariaHaspopup?: AriaHasPopupType
+
+  /**
+   * Typically the contents of a button serve the purpose of describing the
+   * buttons use. However, ariaLabel can be used if the contents do not suffice.
+   * Such as when a button wraps an image and there is no text.
+   */
+  readonly ariaLabel?: string
+
+  /** Whether the button is hidden from screen readers Caution: very rare
+   * instances where a button should be hidden from screen readers. Example:
+   * Windows "Minimize", "Maximize", "Close" are hidden per operating system
+   * convention.
+   */
+  readonly ariaHidden?: boolean
+
+  /** If a button has a sentence type further description than it's label or
+   * contents */
+  readonly ariaDescribedBy?: string
 
   /**
    * Whether to only show the tooltip when the tooltip target overflows its
    * bounds. Typically this is used in conjunction with an ellipsis CSS ruleset.
    */
   readonly onlyShowTooltipWhenOverflowed?: boolean
+
+  /** The aria-pressed attribute indicates the current "pressed" state of a
+   * toggle button.
+   *
+   * Accessibility notes: Do not change the contents of the label on a toggle
+   * button when the state changes. If a button label says "pause", do not
+   * change it to "play" when pressed.
+   * */
+  readonly ariaPressed?: boolean
+
+  /** Whether the input field should auto focus when mounted. */
+  readonly autoFocus?: boolean
+
+  /** Specify the direction of the tooltip */
+  readonly toolTipDirection?: TooltipDirection
+
+  /** Specify custom classes for the button's tooltip */
+  readonly tooltipClassName?: string
 }
 
 /**
@@ -126,6 +198,7 @@ export class Button extends React.Component<IButtonProps, {}> {
       <button
         className={className}
         onClick={disabled ? preventDefault : this.onClick}
+        onKeyDown={this.props.onKeyDown}
         onContextMenu={disabled ? preventDefault : this.onContextMenu}
         type={this.props.type || 'button'}
         ref={this.innerButtonRef}
@@ -134,13 +207,20 @@ export class Button extends React.Component<IButtonProps, {}> {
         role={this.props.role}
         aria-expanded={this.props.ariaExpanded}
         aria-disabled={disabled ? 'true' : undefined}
+        aria-label={this.props.ariaLabel}
+        aria-describedby={this.props.ariaDescribedBy}
+        aria-haspopup={this.props.ariaHaspopup}
+        aria-pressed={this.props.ariaPressed}
+        aria-hidden={this.props.ariaHidden}
+        autoFocus={this.props.autoFocus}
       >
         {tooltip && (
           <Tooltip
+            className={this.props.tooltipClassName}
             target={this.innerButtonRef}
-            direction={TooltipDirection.NORTH}
+            direction={this.props.toolTipDirection ?? TooltipDirection.NORTH}
             // Show the tooltip immediately on hover if the button is disabled
-            delay={disabled && tooltip ? 0 : undefined}
+            delay={disabled ? 0 : undefined}
             onlyWhenOverflowed={this.props.onlyShowTooltipWhenOverflowed}
           >
             {tooltip}

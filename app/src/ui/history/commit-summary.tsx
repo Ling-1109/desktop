@@ -19,6 +19,7 @@ import _ from 'lodash'
 import { LinkButton } from '../lib/link-button'
 import { UnreachableCommitsTab } from './unreachable-commits-dialog'
 import { TooltippedCommitSHA } from '../lib/tooltipped-commit-sha'
+import memoizeOne from 'memoize-one'
 
 interface ICommitSummaryProps {
   readonly repository: Repository
@@ -38,7 +39,7 @@ interface ICommitSummaryProps {
 
   readonly onExpandChanged: (isExpanded: boolean) => void
 
-  readonly onDescriptionBottomChanged: (descriptionBottom: Number) => void
+  readonly onDescriptionBottomChanged: (descriptionBottom: number) => void
 
   readonly hideDescriptionBorder: boolean
 
@@ -141,21 +142,6 @@ function getCommitSummary(selectedCommits: ReadonlyArray<Commit>) {
     : selectedCommits[0].summary
 }
 
-function getCountCommitsNotInDiff(
-  selectedCommits: ReadonlyArray<Commit>,
-  shasInDiff: ReadonlyArray<string>
-) {
-  if (selectedCommits.length === 1) {
-    return 0
-  }
-
-  const excludedCommits = selectedCommits.filter(
-    ({ sha }) => !shasInDiff.includes(sha)
-  )
-
-  return excludedCommits.length
-}
-
 /**
  * Helper function which determines if two commit objects
  * have the same commit summary and body.
@@ -172,6 +158,23 @@ export class CommitSummary extends React.Component<
   private readonly resizeObserver: ResizeObserver | null = null
   private updateOverflowTimeoutId: NodeJS.Immediate | null = null
   private descriptionRef: HTMLDivElement | null = null
+
+  private getCountCommitsNotInDiff = memoizeOne(
+    (
+      selectedCommits: ReadonlyArray<Commit>,
+      shasInDiff: ReadonlyArray<string>
+    ) => {
+      if (selectedCommits.length === 1) {
+        return 0
+      } else {
+        const shas = new Set(shasInDiff)
+        return selectedCommits.reduce(
+          (acc, c) => acc + (shas.has(c.sha) ? 0 : 1),
+          0
+        )
+      }
+    }
+  )
 
   public constructor(props: ICommitSummaryProps) {
     super(props)
@@ -244,11 +247,10 @@ export class CommitSummary extends React.Component<
     const icon = expanded ? OcticonSymbol.fold : OcticonSymbol.unfold
 
     return (
-      // eslint-disable-next-line jsx-a11y/anchor-is-valid, jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-      <a onClick={onClick} className="expander">
+      <button onClick={onClick} className="expander">
         <Octicon symbol={icon} />
         {expanded ? 'Collapse' : 'Expand'}
-      </a>
+      </button>
     )
   }
 
@@ -370,7 +372,7 @@ export class CommitSummary extends React.Component<
       return
     }
 
-    const excludedCommitsCount = getCountCommitsNotInDiff(
+    const excludedCommitsCount = this.getCountCommitsNotInDiff(
       selectedCommits,
       shasInDiff
     )
@@ -405,10 +407,7 @@ export class CommitSummary extends React.Component<
     }
 
     return (
-      <li
-        className="commit-summary-meta-item without-truncation"
-        aria-label="Author"
-      >
+      <li className="commit-summary-meta-item without-truncation">
         <AvatarStack users={avatarUsers} />
         <CommitAttribution
           gitHubRepository={repository.gitHubRepository}
@@ -456,7 +455,7 @@ export class CommitSummary extends React.Component<
       )
     }
 
-    const commitsNotInDiff = getCountCommitsNotInDiff(
+    const commitsNotInDiff = this.getCountCommitsNotInDiff(
       selectedCommits,
       shasInDiff
     )
@@ -502,10 +501,7 @@ export class CommitSummary extends React.Component<
             {this.renderLinesChanged()}
             {this.renderTags()}
 
-            <li
-              className="commit-summary-meta-item without-truncation"
-              title="Diff Options"
-            >
+            <li className="commit-summary-meta-item without-truncation">
               <DiffOptions
                 isInteractiveDiff={false}
                 hideWhitespaceChanges={this.props.hideWhitespaceInDiff}
@@ -536,6 +532,7 @@ export class CommitSummary extends React.Component<
     let filesAdded = 0
     let filesModified = 0
     let filesRemoved = 0
+    let filesRenamed = 0
     for (const file of this.props.changesetData.files) {
       switch (file.status.kind) {
         case AppFileStatusKind.New:
@@ -547,8 +544,13 @@ export class CommitSummary extends React.Component<
         case AppFileStatusKind.Deleted:
           filesRemoved += 1
           break
+        case AppFileStatusKind.Renamed:
+          filesRenamed += 1
       }
     }
+
+    const hasFileDescription =
+      filesAdded + filesModified + filesRemoved + filesRenamed > 0
 
     const filesLongDescription = (
       <>
@@ -579,6 +581,15 @@ export class CommitSummary extends React.Component<
             {filesRemoved} deleted
           </span>
         ) : null}
+        {filesRenamed > 0 ? (
+          <span>
+            <Octicon
+              className="files-renamed-icon"
+              symbol={OcticonSymbol.diffRenamed}
+            />
+            {filesRenamed} renamed
+          </span>
+        ) : null}
       </>
     )
 
@@ -586,7 +597,9 @@ export class CommitSummary extends React.Component<
       <TooltippedContent
         className="commit-summary-meta-item without-truncation"
         tooltipClassName="changed-files-description-tooltip"
-        tooltip={fileCount > 0 ? filesLongDescription : undefined}
+        tooltip={
+          fileCount > 0 && hasFileDescription ? filesLongDescription : undefined
+        }
       >
         <Octicon symbol={OcticonSymbol.diff} />
         {filesShortDescription}
@@ -640,7 +653,7 @@ export class CommitSummary extends React.Component<
 
     return (
       <li className="commit-summary-meta-item" title={tags.join('\n')}>
-        <span aria-label="Tags">
+        <span>
           <Octicon symbol={OcticonSymbol.tag} />
         </span>
 

@@ -36,6 +36,9 @@ import { mkdir } from 'fs/promises'
 import { directoryExists } from '../../lib/directory-exists'
 import { FoldoutType } from '../../lib/app-state'
 import { join } from 'path'
+import { isTopMostDialog } from '../dialog/is-top-most'
+import { InputError } from '../lib/input-description/input-error'
+import { InputWarning } from '../lib/input-description/input-warning'
 
 /** The sentinel value used to indicate no gitignore should be used. */
 const NoGitIgnoreValue = 'None'
@@ -71,6 +74,9 @@ interface ICreateRepositoryProps {
 
   /** Prefills path input so user doesn't have to. */
   readonly initialPath?: string
+
+  /** Whether the dialog is the top most in the dialog stack */
+  readonly isTopMost: boolean
 }
 
 interface ICreateRepositoryState {
@@ -115,6 +121,16 @@ export class CreateRepository extends React.Component<
   ICreateRepositoryProps,
   ICreateRepositoryState
 > {
+  private checkIsTopMostDialog = isTopMostDialog(
+    () => {
+      this.updateReadMeExists(this.state.path, this.state.name)
+      window.addEventListener('focus', this.onWindowFocus)
+    },
+    () => {
+      window.removeEventListener('focus', this.onWindowFocus)
+    }
+  )
+
   public constructor(props: ICreateRepositoryProps) {
     super(props)
 
@@ -145,7 +161,7 @@ export class CreateRepository extends React.Component<
   }
 
   public async componentDidMount() {
-    window.addEventListener('focus', this.onWindowFocus)
+    this.checkIsTopMostDialog(this.props.isTopMost)
 
     const gitIgnoreNames = await getGitIgnoreNames()
     const licenses = await getLicenses()
@@ -158,8 +174,12 @@ export class CreateRepository extends React.Component<
     this.updateReadMeExists(path, this.state.name)
   }
 
-  public componentWillUnmount() {
-    window.removeEventListener('focus', this.onWindowFocus)
+  public componentDidUpdate(): void {
+    this.checkIsTopMostDialog(this.props.isTopMost)
+  }
+
+  public componentWillUnmount(): void {
+    this.checkIsTopMostDialog(false)
   }
 
   private initializePath = async () => {
@@ -507,7 +527,7 @@ export class CreateRepository extends React.Component<
     )
   }
 
-  private renderGitRepositoryWarning() {
+  private renderGitRepositoryError() {
     const isRepo = this.state.isRepository
 
     if (!this.state.path || this.state.path.length === 0 || !isRepo) {
@@ -515,15 +535,20 @@ export class CreateRepository extends React.Component<
     }
 
     return (
-      <Row className="warning-helper-text">
-        <Octicon symbol={OcticonSymbol.alert} />
-        <p>
+      <Row>
+        <InputError
+          id="existing-repository-path-error"
+          trackedUserInput={this.state.path + this.state.name}
+          ariaLiveMessage={
+            'This directory appears to be a Git repository. Would you like to add this repository instead?'
+          }
+        >
           This directory appears to be a Git repository. Would you like to{' '}
           <LinkButton onClick={this.onAddRepositoryClicked}>
             add this repository
           </LinkButton>{' '}
           instead?
-        </p>
+        </InputError>
       </Row>
     )
   }
@@ -541,17 +566,23 @@ export class CreateRepository extends React.Component<
     }
 
     return (
-      <Row className="warning-helper-text">
-        <Octicon symbol={OcticonSymbol.alert} />
-        <p>
+      <Row>
+        <InputWarning
+          id="readme-overwrite-warning"
+          trackedUserInput={this.state.createWithReadme}
+          ariaLiveMessage="This directory contains a README.md file already. Checking
+          this box will result in the existing file being overwritten."
+        >
           This directory contains a <Ref>README.md</Ref> file already. Checking
           this box will result in the existing file being overwritten.
-        </p>
+        </InputWarning>
       </Row>
     )
   }
 
   private onAddRepositoryClicked = () => {
+    this.props.onDismissed()
+
     const { path, name } = this.state
 
     // Shouldn't be able to even get here if path is null.
@@ -593,6 +624,7 @@ export class CreateRepository extends React.Component<
               label="Name"
               placeholder="repository name"
               onValueChanged={this.onNameChanged}
+              ariaDescribedBy="existing-repository-path-error"
             />
           </Row>
 
@@ -613,6 +645,7 @@ export class CreateRepository extends React.Component<
               placeholder="repository path"
               onValueChanged={this.onPathChanged}
               disabled={readOnlyPath || loadingDefaultDir}
+              ariaDescribedBy="existing-repository-path-error"
             />
             <Button
               onClick={this.showFilePicker}
@@ -622,7 +655,7 @@ export class CreateRepository extends React.Component<
             </Button>
           </Row>
 
-          {this.renderGitRepositoryWarning()}
+          {this.renderGitRepositoryError()}
 
           <Row>
             <Checkbox
@@ -633,6 +666,7 @@ export class CreateRepository extends React.Component<
                   : CheckboxValue.Off
               }
               onChange={this.onCreateWithReadmeChange}
+              ariaDescribedBy="readme-overwrite-warning"
             />
           </Row>
           {this.renderReadmeOverwriteWarning()}

@@ -112,11 +112,13 @@ const DefaultDailyMeasures: IDailyMeasures = {
   guidedConflictedMergeCompletionCount: 0,
   unguidedConflictedMergeCompletionCount: 0,
   createPullRequestCount: 0,
+  createPullRequestFromPreviewCount: 0,
   rebaseConflictsDialogDismissalCount: 0,
   rebaseConflictsDialogReopenedCount: 0,
   rebaseAbortedAfterConflictsCount: 0,
   rebaseSuccessAfterConflictsCount: 0,
   rebaseSuccessWithoutConflictsCount: 0,
+  rebaseWithBranchAlreadyUpToDateCount: 0,
   pullWithRebaseCount: 0,
   pullWithDefaultSettingCount: 0,
   stashEntriesCreatedOutsideDesktop: 0,
@@ -212,6 +214,11 @@ const DefaultDailyMeasures: IDailyMeasures = {
   pullRequestReviewChangesRequestedNotificationCount: 0,
   pullRequestReviewChangesRequestedNotificationClicked: 0,
   pullRequestReviewChangesRequestedDialogSwitchToPullRequestCount: 0,
+  pullRequestCommentNotificationCount: 0,
+  pullRequestCommentNotificationClicked: 0,
+  pullRequestCommentNotificationFromRecentRepoCount: 0,
+  pullRequestCommentNotificationFromNonRecentRepoCount: 0,
+  pullRequestCommentDialogSwitchToPullRequestCount: 0,
   multiCommitDiffWithUnreachableCommitWarningCount: 0,
   multiCommitDiffFromHistoryCount: 0,
   multiCommitDiffFromCompareCount: 0,
@@ -219,6 +226,7 @@ const DefaultDailyMeasures: IDailyMeasures = {
   submoduleDiffViewedFromChangesListCount: 0,
   submoduleDiffViewedFromHistoryCount: 0,
   openSubmoduleFromDiffCount: 0,
+  previewedPullRequestCount: 0,
 }
 
 interface IOnboardingStats {
@@ -1076,6 +1084,16 @@ export class StatsStore implements IStatsStore {
   }
 
   /**
+   * Increments the `createPullRequestFromPreviewCount` metric
+   */
+  public recordCreatePullRequestFromPreview(): Promise<void> {
+    return this.updateDailyMeasures(m => ({
+      createPullRequestFromPreviewCount:
+        m.createPullRequestFromPreviewCount + 1,
+    }))
+  }
+
+  /**
    * Increments the `rebaseConflictsDialogDismissalCount` metric
    */
   public recordRebaseConflictsDialogDismissal(): Promise<void> {
@@ -1109,6 +1127,16 @@ export class StatsStore implements IStatsStore {
   public recordPullWithRebaseEnabled() {
     return this.updateDailyMeasures(m => ({
       pullWithRebaseCount: m.pullWithRebaseCount + 1,
+    }))
+  }
+
+  /**
+   * Increments the `rebaseWithBranchAlreadyUpToDateCount` metric
+   */
+  public recordRebaseWithBranchAlreadyUpToDate(): Promise<void> {
+    return this.updateDailyMeasures(m => ({
+      rebaseWithBranchAlreadyUpToDateCount:
+        m.rebaseWithBranchAlreadyUpToDateCount + 1,
     }))
   }
 
@@ -1863,14 +1891,14 @@ export class StatsStore implements IStatsStore {
     return `pullRequestReview${infixMap[reviewType]}${suffix}`
   }
 
-  public recordPullRequestReviewNotiificationFromRecentRepo(): Promise<void> {
+  public recordPullRequestReviewNotificationFromRecentRepo(): Promise<void> {
     return this.updateDailyMeasures(m => ({
       pullRequestReviewNotificationFromRecentRepoCount:
         m.pullRequestReviewNotificationFromRecentRepoCount + 1,
     }))
   }
 
-  public recordPullRequestReviewNotiificationFromNonRecentRepo(): Promise<void> {
+  public recordPullRequestReviewNotificationFromNonRecentRepo(): Promise<void> {
     return this.updateDailyMeasures(m => ({
       pullRequestReviewNotificationFromNonRecentRepoCount:
         m.pullRequestReviewNotificationFromNonRecentRepoCount + 1,
@@ -1907,6 +1935,38 @@ export class StatsStore implements IStatsStore {
       reviewType,
       'DialogSwitchToPullRequestCount'
     )
+  }
+
+  public recordPullRequestCommentNotificationShown() {
+    return this.updateDailyMeasures(m => ({
+      pullRequestCommentNotificationCount:
+        m.pullRequestCommentNotificationCount + 1,
+    }))
+  }
+  public recordPullRequestCommentNotificationClicked() {
+    return this.updateDailyMeasures(m => ({
+      pullRequestCommentNotificationClicked:
+        m.pullRequestCommentNotificationClicked + 1,
+    }))
+  }
+  public recordPullRequestCommentNotificationFromNonRecentRepo() {
+    return this.updateDailyMeasures(m => ({
+      pullRequestCommentNotificationFromNonRecentRepoCount:
+        m.pullRequestCommentNotificationFromNonRecentRepoCount + 1,
+    }))
+  }
+  public recordPullRequestCommentNotificationFromRecentRepo() {
+    return this.updateDailyMeasures(m => ({
+      pullRequestCommentNotificationFromRecentRepoCount:
+        m.pullRequestCommentNotificationFromRecentRepoCount + 1,
+    }))
+  }
+
+  public recordPullRequestCommentDialogSwitchToPullRequest() {
+    return this.updateDailyMeasures(m => ({
+      pullRequestCommentDialogSwitchToPullRequestCount:
+        m.pullRequestCommentDialogSwitchToPullRequestCount + 1,
+    }))
   }
 
   public recordSubmoduleDiffViewedFromChangesList(): Promise<void> {
@@ -1980,6 +2040,15 @@ export class StatsStore implements IStatsStore {
     } catch (e) {
       log.error(`Error reporting opt ${direction}:`, e)
     }
+  }
+
+  /**
+   * Increments the `previewedPullRequestCount` metric
+   */
+  public recordPreviewedPullRequest(): Promise<void> {
+    return this.updateDailyMeasures(m => ({
+      previewedPullRequestCount: m.previewedPullRequestCount + 1,
+    }))
   }
 }
 

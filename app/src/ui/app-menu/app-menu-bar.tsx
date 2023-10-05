@@ -9,6 +9,10 @@ import { AppMenuBarButton } from './app-menu-bar-button'
 import { Dispatcher } from '../dispatcher'
 import { AppMenuFoldout, FoldoutType } from '../../lib/app-state'
 
+/** This is the id used for the windows app menu and used elsewhere
+ * to determine if the app menu is is focus */
+export const appMenuId = 'app-menu-bar'
+
 interface IAppMenuBarProps {
   readonly appMenu: ReadonlyArray<IMenu>
   readonly dispatcher: Dispatcher
@@ -87,6 +91,7 @@ export class AppMenuBar extends React.Component<
   private readonly menuButtonRefsByMenuItemId: {
     [id: string]: AppMenuBarButton
   } = {}
+  private focusedMenuItemId: string | null = null
   private focusOutTimeout: number | null = null
 
   /**
@@ -206,6 +211,7 @@ export class AppMenuBar extends React.Component<
 
     if (itemComponent) {
       itemComponent.focusButton()
+      this.focusedMenuItemId = item.id
     }
   }
 
@@ -348,6 +354,7 @@ export class AppMenuBar extends React.Component<
     if (!nextItem) {
       return
     }
+    this.focusedMenuItemId = nextItem.id
 
     const foldoutState = this.props.foldoutState
 
@@ -358,7 +365,7 @@ export class AppMenuBar extends React.Component<
 
     if (openMenu) {
       this.props.dispatcher.setAppMenuState(m =>
-        m.withOpenedMenu(nextItem, true)
+        m.withOpenedMenu(nextItem, false)
       )
     } else {
       const nextButton = this.menuButtonRefsByMenuItemId[nextItem.id]
@@ -475,6 +482,7 @@ export class AppMenuBar extends React.Component<
         onKeyDown={this.onMenuButtonKeyDown}
         onDidMount={this.onMenuButtonDidMount}
         onWillUnmount={this.onMenuButtonWillUnmount}
+        isFocused={this.focusedMenuItemId === item.id}
       />
     )
   }

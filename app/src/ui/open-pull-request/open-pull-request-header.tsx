@@ -7,7 +7,7 @@ import { Ref } from '../lib/ref'
 
 interface IOpenPullRequestDialogHeaderProps {
   /** The base branch of the pull request */
-  readonly baseBranch: Branch
+  readonly baseBranch: Branch | null
 
   /** The branch of the pull request */
   readonly currentBranch: Branch
@@ -104,6 +104,12 @@ export class OpenPullRequestDialogHeader extends React.Component<
             allBranches={prBaseBranches}
             recentBranches={prRecentBaseBranches}
             onChange={onBranchChange}
+            noBranchesMessage={
+              <>
+                Sorry, I can't find that remote branch. <br />
+                You can only open pull requests against remote branches.
+              </>
+            }
           />{' '}
           from <Ref>{currentBranch.name}</Ref>.
         </div>

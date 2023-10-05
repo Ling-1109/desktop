@@ -9,13 +9,15 @@ import { ICommitContext } from '../../models/commit'
 import { CommitIdentity } from '../../models/commit-identity'
 import { ICommitMessage } from '../../models/commit-message'
 import { IAutocompletionProvider } from '../autocompletion'
-import { IAuthor } from '../../models/author'
+import { Author, UnknownAuthor } from '../../models/author'
 import { CommitMessage } from '../changes/commit-message'
 import { noop } from 'lodash'
 import { Popup } from '../../models/popup'
 import { Foldout } from '../../lib/app-state'
 import { Account } from '../../models/account'
 import { pick } from '../../lib/pick'
+import { RepoRulesInfo } from '../../models/repo-rules'
+import { IAheadBehind } from '../../models/branch'
 
 interface ICommitMessageDialogProps {
   /**
@@ -34,7 +36,7 @@ interface ICommitMessageDialogProps {
    * subsequent commit to add Co-Authored-By commit message trailers depending
    * on whether the user has chosen to do so.
    */
-  readonly coAuthors: ReadonlyArray<IAuthor>
+  readonly coAuthors: ReadonlyArray<Author>
 
   /**
    * The name and email that will be used for the author info when committing
@@ -51,6 +53,8 @@ interface ICommitMessageDialogProps {
    * Whether or not the app should use spell check on commit summary and description
    */
   readonly commitSpellcheckEnabled: boolean
+
+  readonly showCommitLengthWarning: boolean
 
   /** Text for the ok button */
   readonly dialogButtonText: string
@@ -69,6 +73,11 @@ interface ICommitMessageDialogProps {
 
   /** Whether to warn the user that they are on a protected branch. */
   readonly showBranchProtected: boolean
+
+  /** Repository rules that apply to the branch. */
+  readonly repoRulesInfo: RepoRulesInfo
+
+  readonly aheadBehind: IAheadBehind | null
 
   /**
    * Whether or not to show a field for adding co-authors to a commit
@@ -90,7 +99,7 @@ interface ICommitMessageDialogProps {
 
 interface ICommitMessageDialogState {
   readonly showCoAuthoredBy: boolean
-  readonly coAuthors: ReadonlyArray<IAuthor>
+  readonly coAuthors: ReadonlyArray<Author>
 }
 
 export class CommitMessageDialog extends React.Component<
@@ -112,7 +121,9 @@ export class CommitMessageDialog extends React.Component<
         <DialogContent>
           <CommitMessage
             branch={this.props.branch}
+            mostRecentLocalCommit={null}
             commitAuthor={this.props.commitAuthor}
+            dispatcher={this.props.dispatcher}
             isShowingModal={true}
             isShowingFoldout={false}
             commitButtonText={this.props.dialogButtonText}
@@ -127,10 +138,16 @@ export class CommitMessageDialog extends React.Component<
             prepopulateCommitSummary={this.props.prepopulateCommitSummary}
             key={this.props.repository.id}
             showBranchProtected={this.props.showBranchProtected}
+            repoRulesInfo={this.props.repoRulesInfo}
+            aheadBehind={this.props.aheadBehind}
             showNoWriteAccess={this.props.showNoWriteAccess}
             commitSpellcheckEnabled={this.props.commitSpellcheckEnabled}
+            showCommitLengthWarning={this.props.showCommitLengthWarning}
             onCoAuthorsUpdated={this.onCoAuthorsUpdated}
             onShowCoAuthoredByChanged={this.onShowCoAuthorsChanged}
+            onConfirmCommitWithUnknownCoAuthors={
+              this.onConfirmCommitWithUnknownCoAuthors
+            }
             onCreateCommit={this.props.onSubmitCommitMessage}
             anyFilesAvailable={true}
             anyFilesSelected={true}
@@ -150,11 +167,19 @@ export class CommitMessageDialog extends React.Component<
     )
   }
 
-  private onCoAuthorsUpdated = (coAuthors: ReadonlyArray<IAuthor>) =>
+  private onCoAuthorsUpdated = (coAuthors: ReadonlyArray<Author>) =>
     this.setState({ coAuthors })
 
   private onShowCoAuthorsChanged = (showCoAuthoredBy: boolean) =>
     this.setState({ showCoAuthoredBy })
+
+  private onConfirmCommitWithUnknownCoAuthors = (
+    coAuthors: ReadonlyArray<UnknownAuthor>,
+    onCommitAnyway: () => void
+  ) => {
+    const { dispatcher } = this.props
+    dispatcher.showUnknownAuthorsCommitWarning(coAuthors, onCommitAnyway)
+  }
 
   private onRefreshAuthor = () =>
     this.props.dispatcher.refreshAuthor(this.props.repository)

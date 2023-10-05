@@ -175,12 +175,7 @@ export async function getBranchMergeBaseDiff(
     maxBuffer: Infinity,
   })
 
-  return buildDiff(
-    Buffer.from(result.combinedOutput),
-    repository,
-    file,
-    latestCommit
-  )
+  return buildDiff(Buffer.from(result.stdout), repository, file, latestCommit)
 }
 
 /**
@@ -237,12 +232,7 @@ export async function getCommitRangeDiff(
     )
   }
 
-  return buildDiff(
-    Buffer.from(result.combinedOutput),
-    repository,
-    file,
-    latestCommit
-  )
+  return buildDiff(Buffer.from(result.stdout), repository, file, latestCommit)
 }
 
 /**
@@ -285,7 +275,7 @@ export async function getBranchMergeBaseChangedFiles(
   )
 
   return parseRawLogWithNumstat(
-    result.combinedOutput,
+    result.stdout,
     `${latestComparisonBranchCommitRef}`,
     mergeBaseCommit
   )
@@ -530,7 +520,7 @@ function getMediaType(extension: string) {
  * changes based on what the user has configured.
  */
 const lineEndingsChangeRegex =
-  /warning: (CRLF|CR|LF) will be replaced by (CRLF|CR|LF) in .*/
+  /', (CRLF|CR|LF) will be replaced by (CRLF|CR|LF) the .*/
 
 /**
  * Utility function for inspecting the stderr output for the line endings

@@ -61,6 +61,13 @@ interface IOpenPullRequestDialogProps {
   /** Label for selected external editor */
   readonly externalEditorLabel?: string
 
+  /**
+   * Callback to open a selected file using the configured external editor
+   *
+   * @param fullPath The full path to the file on disk
+   */
+  readonly onOpenInExternalEditor: (fullPath: string) => void
+
   /** Width to use for the files list pane in the files changed view */
   readonly fileListWidth: IConstrainedValue
 
@@ -85,9 +92,9 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
       dispatcher.showPullRequest(repository)
     } else {
       const { baseBranch } = this.props.pullRequestState
-      dispatcher.createPullRequest(repository, baseBranch)
-      // TODO: create pr from dialog pr stat?
+      dispatcher.createPullRequest(repository, baseBranch ?? undefined)
       dispatcher.recordCreatePullRequest()
+      dispatcher.recordCreatePullRequestFromPreview()
     }
 
     onDismissed()
@@ -125,6 +132,7 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
     return (
       <div className="open-pull-request-content">
         {this.renderNoChanges()}
+        {this.renderNoDefaultBranch()}
         {this.renderFilesChanged()}
       </div>
     )
@@ -142,6 +150,11 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
       nonLocalCommitSHA,
     } = this.props
     const { commitSelection } = pullRequestState
+    if (commitSelection === null) {
+      // type checking - will render no default branch message
+      return
+    }
+
     const { diff, file, changesetData, shas } = commitSelection
     const { files } = changesetData
 
@@ -162,6 +175,7 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
         selectedFile={file}
         showSideBySideDiff={this.props.showSideBySideDiff}
         repository={repository}
+        onOpenInExternalEditor={this.props.onOpenInExternalEditor}
       />
     )
   }
@@ -169,8 +183,12 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
   private renderNoChanges() {
     const { pullRequestState, currentBranch } = this.props
     const { commitSelection, baseBranch, mergeStatus } = pullRequestState
-    const { shas } = commitSelection
+    if (commitSelection === null || baseBranch === null) {
+      // type checking - will render no default branch message
+      return
+    }
 
+    const { shas } = commitSelection
     if (shas.length !== 0) {
       return
     }
@@ -187,11 +205,29 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
       </>
     )
     return (
-      <div className="open-pull-request-no-changes">
+      <div className="open-pull-request-message">
         <div>
           <Octicon symbol={OcticonSymbol.gitPullRequest} />
           <h3>There are no changes.</h3>
           {message}
+        </div>
+      </div>
+    )
+  }
+
+  private renderNoDefaultBranch() {
+    const { baseBranch } = this.props.pullRequestState
+
+    if (baseBranch !== null) {
+      return
+    }
+
+    return (
+      <div className="open-pull-request-message">
+        <div>
+          <Octicon symbol={OcticonSymbol.gitPullRequest} />
+          <h3>Could not find a default branch to compare against.</h3>
+          Select a base branch above.
         </div>
       </div>
     )

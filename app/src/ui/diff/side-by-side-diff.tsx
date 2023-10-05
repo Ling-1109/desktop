@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import { Repository } from '../../models/repository'
 import {
   ITextDiff,
@@ -21,14 +22,14 @@ import {
 } from '../../lib/fatal-error'
 import classNames from 'classnames'
 import {
-  List,
-  AutoSizer,
-  CellMeasurerCache,
-  CellMeasurer,
+  VariableSizeList as List,
+  // CellMeasurerCache,
+  // CellMeasurer,
   ListRowProps,
   OverscanIndicesGetterParams,
   defaultOverscanIndicesGetter,
-} from 'react-virtualized'
+} from 'react-window'
+import AutoSizer from 'react-virtualized-auto-sizer'
 import { SideBySideDiffRow } from './side-by-side-diff-row'
 import memoize from 'memoize-one'
 import {
@@ -49,6 +50,7 @@ import {
   getNumberOfDigits,
   MaxIntraLineDiffStringLength,
   getFirstAndLastClassesSideBySide,
+  textDiffEquals,
 } from './diff-helpers'
 import { showContextualMenu } from '../../lib/menu-item'
 import { getTokens } from './diff-syntax-mode'
@@ -199,6 +201,12 @@ interface ISideBySideDiffState {
   readonly searchResults?: SearchResults
 
   readonly selectedSearchResult: number | undefined
+
+  /** This tracks the last expanded hunk index so that we can refocus the expander after rerender */
+  readonly lastExpandedHunk: {
+    index: number
+    expansionType: DiffHunkExpansionType
+  } | null
 }
 
 const listRowsHeightCache = new CellMeasurerCache({
@@ -227,6 +235,7 @@ export class SideBySideDiff extends React.Component<
       isSearching: false,
       selectedSearchResult: undefined,
       selectingTextInRow: 'before',
+      lastExpandedHunk: null,
     }
   }
 
@@ -344,6 +353,11 @@ export class SideBySideDiff extends React.Component<
 
   private isEntireDiffSelected(selection = document.getSelection()) {
     const { diffContainer } = this
+
+    if (selection?.rangeCount === 0) {
+      return false
+    }
+
     const ancestor = selection?.getRangeAt(0).commonAncestorContainer
 
     // This is an artefact of the selectAllChildren call in the onSelectAll
@@ -375,11 +389,9 @@ export class SideBySideDiff extends React.Component<
       this.clearListRowsHeightCache()
     }
 
-    if (this.props.diff.text !== prevProps.diff.text) {
+    if (!textDiffEquals(this.props.diff, prevProps.diff)) {
       this.diffToRestore = null
-      this.setState({
-        diff: this.props.diff,
-      })
+      this.setState({ diff: this.props.diff, lastExpandedHunk: null })
     }
 
     // Scroll to top if we switched to a new file
@@ -455,13 +467,13 @@ export class SideBySideDiff extends React.Component<
           ref={this.onDiffContainerRef}
         >
           <AutoSizer onResize={this.clearListRowsHeightCache}>
-            {({ height, width }) => (
+            {({ height, width }: { height: number; width: number }) => (
               <List
-                deferredMeasurementCache={listRowsHeightCache}
+                // deferredMeasurementCache={listRowsHeightCache}
                 width={width}
                 height={height}
-                rowCount={rows.length}
-                rowHeight={this.getRowHeight}
+                itemCount={rows.length}
+                itemSize={this.getRowHeight}
                 rowRenderer={this.renderRow}
                 ref={this.virtualListRef}
                 overscanIndicesGetter={this.overscanIndicesGetter}
@@ -478,7 +490,10 @@ export class SideBySideDiff extends React.Component<
                 hoveredHunk={this.state.hoveredHunk}
                 isSelectable={canSelect(this.props.file)}
                 fileSelection={this.getSelection()}
-              />
+                // rows are memoized and include things like the
+                // noNewlineIndicator
+                rows={rows}
+              ></List>
             )}
           </AutoSizer>
         </div>
@@ -572,13 +587,14 @@ export class SideBySideDiff extends React.Component<
             }
             beforeClassNames={beforeClassNames}
             afterClassNames={afterClassNames}
+            lastExpandedHunk={this.state.lastExpandedHunk}
           />
         </div>
       </CellMeasurer>
     )
   }
 
-  private getRowHeight = (row: { index: number }) => {
+  private getRowHeight = (row: number) => {
     return listRowsHeightCache.rowHeight(row) ?? DefaultRowHeight
   }
 
@@ -903,12 +919,19 @@ export class SideBySideDiff extends React.Component<
     this.setState({ hoveredHunk: undefined })
   }
 
-  private onExpandHunk = (hunkIndex: number, kind: DiffExpansionKind) => {
+  private onExpandHunk = (
+    hunkIndex: number,
+    expansionType: DiffHunkExpansionType
+  ) => {
     const { diff } = this.state
 
     if (hunkIndex === -1 || hunkIndex >= diff.hunks.length) {
       return
     }
+
+    this.setState({ lastExpandedHunk: { index: hunkIndex, expansionType } })
+
+    const kind = expansionType === DiffHunkExpansionType.Down ? 'down' : 'up'
 
     this.expandHunk(diff.hunks[hunkIndex], kind)
   }

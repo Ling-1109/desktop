@@ -31,8 +31,8 @@ import { openFile } from './lib/open-file'
 import { AheadBehindStore } from '../lib/stores/ahead-behind-store'
 import { dragAndDropManager } from '../lib/drag-and-drop-manager'
 import { DragType } from '../models/drag-drop'
-import { clamp } from '../lib/clamp'
 import { PullRequestSuggestedNextAction } from '../models/pull-request'
+import { clamp } from '../lib/clamp'
 
 interface IRepositoryViewProps {
   readonly repository: Repository
@@ -51,8 +51,10 @@ interface IRepositoryViewProps {
   readonly showSideBySideDiff: boolean
   readonly askForConfirmationOnDiscardChanges: boolean
   readonly askForConfirmationOnDiscardStash: boolean
+  readonly askForConfirmationOnCheckoutCommit: boolean
   readonly focusCommitMessage: boolean
   readonly commitSpellcheckEnabled: boolean
+  readonly showCommitLengthWarning: boolean
   readonly accounts: ReadonlyArray<Account>
 
   /**
@@ -119,6 +121,12 @@ export class RepositoryView extends React.Component<
   // the Compare list is rendered.
   private forceCompareListScrollTop: boolean = false
 
+  private readonly changesSidebarRef = React.createRef<ChangesSidebar>()
+  private readonly compareSidebarRef = React.createRef<CompareSidebar>()
+
+  private focusHistoryNeeded: boolean = false
+  private focusChangesNeeded: boolean = false
+
   public constructor(props: IRepositoryViewProps) {
     super(props)
 
@@ -126,6 +134,14 @@ export class RepositoryView extends React.Component<
       changesListScrollTop: 0,
       compareListScrollTop: 0,
     }
+  }
+
+  public setFocusHistoryNeeded(): void {
+    this.focusHistoryNeeded = true
+  }
+
+  public setFocusChangesNeeded(): void {
+    this.focusChangesNeeded = true
   }
 
   public scrollCompareListToTop(): void {
@@ -163,12 +179,12 @@ export class RepositoryView extends React.Component<
 
     return (
       <TabBar selectedIndex={selectedTab} onTabClicked={this.onTabClicked}>
-        <span className="with-indicator">
+        <span className="with-indicator" id="changes-tab">
           <span>Changes</span>
           {this.renderChangesBadge()}
         </span>
 
-        <div className="with-indicator">
+        <div className="with-indicator" id="history-tab">
           <span>History</span>
         </div>
       </TabBar>
@@ -205,9 +221,11 @@ export class RepositoryView extends React.Component<
 
     return (
       <ChangesSidebar
+        ref={this.changesSidebarRef}
         repository={this.props.repository}
         dispatcher={this.props.dispatcher}
         changes={this.props.state.changesState}
+        aheadBehind={this.props.state.aheadBehind}
         branch={branchName}
         commitAuthor={this.props.state.commitAuthor}
         emoji={this.props.emoji}
@@ -233,6 +251,7 @@ export class RepositoryView extends React.Component<
           this.props.currentTutorialStep === TutorialStep.MakeCommit
         }
         commitSpellcheckEnabled={this.props.commitSpellcheckEnabled}
+        showCommitLengthWarning={this.props.showCommitLengthWarning}
       />
     )
   }
@@ -263,6 +282,7 @@ export class RepositoryView extends React.Component<
 
     return (
       <CompareSidebar
+        ref={this.compareSidebarRef}
         repository={repository}
         isLocalRepository={remote === null}
         compareState={compareState}
@@ -283,6 +303,9 @@ export class RepositoryView extends React.Component<
         tagsToPush={tagsToPush}
         aheadBehindStore={aheadBehindStore}
         isMultiCommitOperationInProgress={mcos !== null}
+        askForConfirmationOnCheckoutCommit={
+          this.props.askForConfirmationOnCheckoutCommit
+        }
       />
     )
   }
@@ -338,8 +361,7 @@ export class RepositoryView extends React.Component<
 
   private renderStashedChangesContent(): JSX.Element | null {
     const { changesState } = this.props.state
-    const { selection, stashEntry, workingDirectory } = changesState
-    const isWorkingTreeClean = workingDirectory.files.length === 0
+    const { selection, stashEntry } = changesState
 
     if (selection.kind !== ChangesSelectionKind.Stash || stashEntry === null) {
       return null
@@ -358,12 +380,12 @@ export class RepositoryView extends React.Component<
           askForConfirmationOnDiscardStash={
             this.props.askForConfirmationOnDiscardStash
           }
-          isWorkingTreeClean={isWorkingTreeClean}
           showSideBySideDiff={this.props.showSideBySideDiff}
           onOpenBinaryFile={this.onOpenBinaryFile}
           onOpenSubmodule={this.onOpenSubmodule}
           onChangeImageDiffType={this.onChangeImageDiffType}
           onHideWhitespaceInDiffChanged={this.onHideWhitespaceInDiffChanged}
+          onOpenInExternalEditor={this.props.onOpenInExternalEditor}
         />
       )
     }
@@ -503,6 +525,7 @@ export class RepositoryView extends React.Component<
             this.props.askForConfirmationOnDiscardChanges
           }
           onDiffOptionsOpened={this.onDiffOptionsOpened}
+          onOpenInExternalEditor={this.props.onOpenInExternalEditor}
         />
       )
     }
@@ -560,6 +583,18 @@ export class RepositoryView extends React.Component<
 
   public componentWillUnmount() {
     window.removeEventListener('keydown', this.onGlobalKeyDown)
+  }
+
+  public componentDidUpdate(): void {
+    if (this.focusChangesNeeded) {
+      this.focusChangesNeeded = false
+      this.changesSidebarRef.current?.focus()
+    }
+
+    if (this.focusHistoryNeeded) {
+      this.focusHistoryNeeded = false
+      this.compareSidebarRef.current?.focusHistory()
+    }
   }
 
   private onGlobalKeyDown = (event: KeyboardEvent) => {
