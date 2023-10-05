@@ -381,6 +381,10 @@ export class GitStore extends BaseStore {
     return this._localTags
   }
 
+  public get desktopStashEntries(): Map<string, IStashEntry> | null {
+    return this._desktopStashEntries
+  }
+
   /** Load all the branches. */
   public async loadBranches() {
     const [localAndRemoteBranches, recentBranchNames] = await Promise.all([
@@ -1187,7 +1191,7 @@ export class GitStore extends BaseStore {
     this._stashEntryCount = stash.stashEntryCount
     this.emitUpdate()
 
-    this.loadFilesForCurrentStashEntry()
+    this.loadFilesForStashEntry(this.currentBranchStashEntry)
   }
 
   /**
@@ -1213,9 +1217,7 @@ export class GitStore extends BaseStore {
   /**
    * Updates the latest stash entry with a list of files that it changes
    */
-  private async loadFilesForCurrentStashEntry() {
-    const stashEntry = this.currentBranchStashEntry
-
+  public async loadFilesForStashEntry(stashEntry: IStashEntry | null) {
     if (
       !stashEntry ||
       stashEntry.files.kind !== StashedChangesLoadStates.NotLoaded

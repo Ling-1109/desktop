@@ -316,6 +316,13 @@ export class Dispatcher {
     return this.appStore._selectStashedFile(repository, file)
   }
 
+  public updateChangesStateStash(
+    repository: Repository,
+    stashEntry: IStashEntry
+  ) {
+    return this.appStore._updateChangesStateStash(repository, stashEntry)
+  }
+
   /**
    * Commit the changes which were marked for inclusion, using the given commit
    * summary and description and optionally any number of commit message trailers
@@ -2669,8 +2676,12 @@ export class Dispatcher {
   }
 
   /** Pop the given stash in the given repository */
-  public popStash(repository: Repository, stashEntry: IStashEntry) {
-    return this.appStore._popStashEntry(repository, stashEntry)
+  public popStash(
+    repository: Repository,
+    stashEntry: IStashEntry,
+    isPop: boolean
+  ) {
+    return this.appStore._popStashEntry(repository, stashEntry, isPop)
   }
 
   /**
@@ -3863,6 +3874,13 @@ export class Dispatcher {
         })
       },
     })
+  }
+
+  public loadFilesForStashEntry(
+    repository: Repository,
+    stashEntry: IStashEntry
+  ): Promise<IStashEntry | null> {
+    return this.appStore._loadFilesForStashEntry(repository, stashEntry)
   }
 
   public startMergeBranchOperation(
