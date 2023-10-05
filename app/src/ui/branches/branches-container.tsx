@@ -144,10 +144,10 @@ export class BranchesContainer extends React.Component<
   }
 
   private onMouseLeavePullRequestQuickView = () => {
-    this.setState({
+    /*     this.setState({
       pullRequestBeingViewed: null,
     })
-    this.clearPullRequestQuickViewTimer()
+    this.clearPullRequestQuickViewTimer() */
   }
 
   private renderMergeButtonRow() {
