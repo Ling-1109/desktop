@@ -131,6 +131,11 @@ interface IDialogProps {
    * of the loading operation.
    */
   readonly loading?: boolean
+
+  /** Whether or not to override focus of first element with close button */
+  readonly focusCloseButtonOnOpen?: boolean
+
+  readonly onDialogRef?: (ref: HTMLDialogElement | null) => void
 }
 
 /**
@@ -467,7 +472,17 @@ export class Dialog extends React.Component<DialogProps, IDialogState> {
     // anchor tag masquerading as a button)
     let firstTabbable: HTMLElement | null = null
 
-    const closeButton = dialog.querySelector(':scope > header button.close')
+    const closeButton = dialog.querySelector(
+      ':scope > div.dialog-header button.close'
+    )
+
+    if (
+      closeButton instanceof HTMLElement &&
+      this.props.focusCloseButtonOnOpen
+    ) {
+      closeButton.focus()
+      return
+    }
 
     const excludedInputTypes = [
       ':not([type=button])',
@@ -664,6 +679,7 @@ export class Dialog extends React.Component<DialogProps, IDialogState> {
     }
 
     this.dialogElement = e
+    this.props.onDialogRef?.(e)
   }
 
   private onKeyDown = (event: React.KeyboardEvent) => {
