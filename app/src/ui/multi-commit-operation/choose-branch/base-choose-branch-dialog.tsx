@@ -249,6 +249,7 @@ export abstract class BaseChooseBranchDialog extends React.Component<
           <DropdownSelectButton
             checkedOption={operation}
             options={getMergeOptions()}
+            dropdownAriaLabel="Merge options"
             disabled={!this.canStart()}
             ariaDescribedBy="merge-status-preview"
             dropdownAriaLabel="Merge options"
