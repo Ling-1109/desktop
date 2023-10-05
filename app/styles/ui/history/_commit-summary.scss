@@ -6,71 +6,24 @@
   flex-direction: column;
   min-height: 0;
 
-  .avatar {
-    width: 16px;
-    height: 16px;
+  .commit-summary-header {
+    border-bottom: var(--base-border);
   }
 
-  .expander {
-    position: absolute;
-    width: 75px;
-    top: var(--spacing);
-    right: var(--spacing);
-    background: transparent;
-    padding: 0;
-    border: none;
-    color: var(--text-color);
-    font-size: inherit;
-    font-weight: normal;
-    font-family: inherit;
+  .selectable {
+    user-select: text;
+    cursor: text;
 
-    svg {
-      vertical-align: text-top;
-      margin-right: var(--spacing-half);
-    }
-  }
-
-  &.expanded {
-    .commit-summary-description-scroll-view {
-      max-height: 400px;
-      overflow: auto;
-      display: revert;
-
-      &:before {
-        content: none;
-      }
-    }
-  }
-
-  &.hide-description-border {
-    .commit-summary-description-container {
-      border-bottom: none;
-    }
-  }
-
-  &.has-expander {
-    .commit-summary-description {
-      padding-right: 100px;
-    }
-
-    // When the description area can be, but isn't yet, expanded
-    // we'll add a small shadow towards the bottom to hint that
-    // there's more content available.
-    &:not(.expanded) {
-      .commit-summary-description:before {
-        content: '';
-        background: var(--box-overflow-shadow-background);
-        position: absolute;
-        height: 30px;
-        bottom: 0px;
-        width: 100%;
-        pointer-events: none;
-      }
+    * {
+      user-select: unset;
+      pointer-events: unset;
+      cursor: text;
     }
   }
 
   .commit-unreachable-info {
     padding: var(--spacing-half) var(--spacing);
+    padding-top: 0;
     border-bottom: var(--base-border);
     display: flex;
     align-items: center;
@@ -83,116 +36,192 @@
       margin-right: var(--spacing-half);
     }
   }
-}
 
-// NOTE: This isn't a real class, it's an SCSS hack to allow us to only write
-// the suffixes of class names that all start with commit-summary. It's quite
-// confusing and also has the added downside of making it impossible to search
-// for a class name one finds in tsx. We might want to consider not allowing
-// this in the future but that's for... the future.
-.commit-summary {
-  &-title,
-  &-meta {
-    padding: var(--spacing);
-
-    .lines-added {
-      color: var(--color-new);
-    }
-
-    .lines-deleted {
-      color: var(--color-deleted);
-    }
-  }
-
-  &-title {
+  .commit-summary-title {
     font-size: var(--font-size-md);
     font-weight: var(--font-weight-semibold);
-    line-height: 16px;
+    line-height: 18px;
     padding: var(--spacing);
     word-wrap: break-word;
+    display: flex;
 
     &.empty-summary {
       color: var(--text-secondary-color);
     }
-  }
 
-  &-description-container {
-    display: flex;
-    // So that we have something to position the expander against
-    position: relative;
-    border-bottom: var(--base-border);
-    min-height: 0;
-  }
+    .expander {
+      background: transparent;
+      padding: 0;
+      border: none;
+      color: var(--text-color);
+      font-size: inherit;
+      font-weight: normal;
+      font-family: inherit;
+      margin-left: var(--spacing);
+      height: auto;
 
-  &-description-scroll-view {
-    overflow: hidden;
-    flex: 1;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    // Maximum amount of commit description lines to show before collapsing
-    -webkit-line-clamp: 3;
-  }
+      svg {
+        vertical-align: text-top;
+      }
 
-  // Enable text selection inside the title and description elements.
-  &-title,
-  &-description {
-    user-select: text;
-    cursor: text;
+      &.useEllipsis {
+        svg {
+          margin-right: 0;
+        }
 
-    * {
-      user-select: unset;
-      pointer-events: unset;
-      cursor: text;
+        color: var(--text-secondary-color);
+      }
+    }
+
+    .details-expander {
+      background: transparent;
+      padding: 0;
+      border: none;
+      color: var(--text-secondary-color);
+      font-size: inherit;
+      font-weight: normal;
+      font-family: inherit;
+      height: auto;
+      margin-right: var(--spacing);
+    }
+
+    .commits-in-diff {
+      padding-left: var(--spacing-half);
     }
   }
 
-  &-description {
+  .commit-body {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    // Maximum amount of commit description lines to show before collapsing
+    -webkit-line-clamp: 1;
     font-family: var(--font-family-monospace);
     font-size: var(--font-size-sm);
     word-wrap: break-word;
     white-space: pre-line;
-    padding: var(--spacing);
+    padding: 0 var(--spacing);
+    margin-bottom: var(--spacing);
     min-height: 0;
   }
 
-  &-meta {
+  .commit-summary-meta {
     display: flex;
-    list-style: none;
     margin: 0;
     padding: 0 var(--spacing) var(--spacing);
+
+    .commit-summary-meta-item {
+      display: flex;
+      flex-direction: row;
+      min-width: 0;
+      margin-right: var(--spacing);
+      font-size: var(--font-size-sm);
+      flex-shrink: 0;
+
+      &.authors {
+        .avatar {
+          width: 16px;
+          height: 16px;
+        }
+
+        .avatar,
+        .octicon {
+          display: inline-block;
+          vertical-align: bottom; // For some reason, `bottom` places the text in the middle
+        }
+
+        .author {
+          display: flex;
+
+          .avatar-container {
+            margin-right: var(--spacing-half);
+          }
+        }
+      }
+
+      &.commit-ref {
+        .ref {
+          padding-left: var(--spacing-half);
+        }
+
+        .copy-button {
+          background: transparent;
+          border: none;
+          padding: 0;
+          margin-left: var(--spacing-half);
+          height: auto;
+
+          :hover {
+            color: var(--text-secondary-color);
+          }
+        }
+      }
+
+      &.lines-added-deleted {
+        div {
+          padding-right: var(--spacing-half);
+        }
+
+        .lines-added {
+          color: var(--color-new);
+        }
+
+        .lines-deleted {
+          color: var(--color-deleted);
+        }
+      }
+
+      &.tags-item {
+        flex-shrink: 1;
+        user-select: text;
+
+        .tags {
+          padding-left: var(--spacing-half);
+          @include ellipsis;
+        }
+      }
+    }
   }
 
-  &-meta-item:not(.without-truncation) {
-    flex-shrink: 1;
-    min-width: 0;
-  }
-
-  &-meta-item {
-    display: flex;
-    flex-direction: row;
-    min-width: 0;
-    margin-right: var(--spacing);
-    font-size: var(--font-size-sm);
-    flex-shrink: 0;
-
-    .avatar,
-    .octicon {
-      display: inline-block;
-      margin-right: var(--spacing-third);
-      vertical-align: bottom; // For some reason, `bottom` places the text in the middle
+  &.expanded {
+    .commit-body {
+      -webkit-line-clamp: unset;
+      margin: var(--spacing);
+      margin-top: 0;
+      background-color: var(--box-alt-background-color);
+      padding: var(--spacing);
+      max-height: 300px;
+      overflow-y: auto;
     }
 
-    .selectable {
-      user-select: text;
+    .commit-summary-meta {
+      display: block;
+
+      .commit-summary-meta-item {
+        margin-bottom: var(--spacing-half);
+
+        &.authors {
+          display: block;
+
+          .author {
+            margin-bottom: 2px;
+          }
+        }
+
+        .tags {
+          white-space: unset;
+          overflow: unset;
+        }
+      }
     }
 
-    .tags {
-      @include ellipsis;
-      flex-shrink: 1;
+    &.details {
+      .commit-body {
+        margin-left: 15px;
+      }
+      .commit-summary-meta {
+        margin-left: 5px;
+      }
     }
-  }
-
-  &-header {
-    border-bottom: var(--base-border);
   }
 }
